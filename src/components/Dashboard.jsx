@@ -39,6 +39,7 @@ export default function Dashboard({
   streak = 3,
   isDark = false,
   onToggleTheme = () => {},
+  cameraFeed = null,
 }) {
   useEffect(() => {
     if (isDark) {
@@ -228,16 +229,22 @@ export default function Dashboard({
         {/* COLUMN 2 (Center - span 6): Main Camera Feed + Status Banner */}
         <section className="lg:col-span-6 flex flex-col gap-3 h-full">
           {/* Camera Feed Box */}
-          <div className="relative flex-1 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--border)] bg-[var(--card)]/50 shadow-sm backdrop-blur-sm p-6 text-center min-h-[320px]">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] shadow-sm mb-2.5">
-              <Monitor className="h-6 w-6" />
-            </div>
-            <p className="text-base font-bold text-[var(--foreground)]">
-              Camera Feed Offline
-            </p>
-            <p className="mt-1 text-xs font-semibold text-[var(--muted-foreground)]">
-              Enable your webcam to begin real-time monitoring
-            </p>
+          <div className={`relative flex-1 flex flex-col items-center justify-center rounded-2xl border-2 ${cameraFeed ? 'border-[var(--border)]' : 'border-dashed border-[var(--border)]'} bg-[var(--card)]/50 shadow-sm backdrop-blur-sm overflow-hidden min-h-[320px]`}>
+            {cameraFeed ? (
+              cameraFeed
+            ) : (
+              <div className="flex flex-col items-center justify-center p-6 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] shadow-sm mb-2.5">
+                  <Monitor className="h-6 w-6" />
+                </div>
+                <p className="text-base font-bold text-[var(--foreground)]">
+                  Camera Feed Offline
+                </p>
+                <p className="mt-1 text-xs font-semibold text-[var(--muted-foreground)]">
+                  Enable your webcam to begin real-time monitoring
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Status Banner */}

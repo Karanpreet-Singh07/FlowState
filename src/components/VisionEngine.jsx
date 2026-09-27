@@ -5,11 +5,15 @@ import { FilesetResolver, PoseLandmarker, DrawingUtils } from '@mediapipe/tasks-
  * VisionEngine Component
  * 
  * Handles live webcam video feed and MediaPipe PoseLandmarker detection.
- * Computes posture score based on vertical nose-to-shoulder distance and throttles
- * updates to the parent component via `onUpdate` to once every 1000ms.
+ * Computes posture score based on vertical nose-to-shoulder distance.
+ * Implements a timing pipeline for slouch duration:
+ *   - < 1000ms slouching  → postureStatus = 'good'
+ *   - ≥ 1000ms & < 5000ms → postureStatus = 'alert'
+ *   - ≥ 5000ms            → postureStatus = 'stretch'
+ * Fires onUpdate when status changes or at most once per 1000ms.
  * 
  * @param {Object} props
- * @param {Function} props.onUpdate - Callback invoked once per second with { postureScore, isSlouching }
+ * @param {Function} props.onUpdate - Callback with { postureScore, isSlouching, postureStatus }
  */
 export default function VisionEngine({ onUpdate }) {
   const videoRef = useRef(null);
@@ -17,6 +21,10 @@ export default function VisionEngine({ onUpdate }) {
 
   // Throttle timestamp ref to ensure onUpdate fires only once every 1000ms
   const lastUpdateRef = useRef(0);
+
+  // Timing pipeline refs for posture status progression
+  const slouchStartRef = useRef(null);
+  const lastStatusRef = useRef('good');
 
   // Reference to avoid stale closure in the requestAnimationFrame loop
   const onUpdateRef = useRef(onUpdate);
@@ -177,13 +185,39 @@ export default function VisionEngine({ onUpdate }) {
               });
 
               // ==========================================
-              // THROTTLE RULE: EXACTLY ONCE PER 1000MS
+              // TIMING PIPELINE: POSTURE STATUS PROGRESSION
               // ==========================================
+              // Reset slouch timer when user sits up straight
+              if (!isSlouching) {
+                slouchStartRef.current = null;
+              }
+
+              // Determine postureStatus based on slouch duration
+              let postureStatus = 'good';
+              if (isSlouching) {
+                if (slouchStartRef.current === null) {
+                  slouchStartRef.current = performance.now();
+                }
+                const duration = performance.now() - slouchStartRef.current;
+                if (duration < 1000) {
+                  postureStatus = 'good';
+                } else if (duration < 5000) {
+                  postureStatus = 'alert';
+                } else {
+                  postureStatus = 'stretch';
+                }
+              }
+
+              // Only fire onUpdate when the status actually changes
               const currentTime = performance.now();
-              if (currentTime - lastUpdateRef.current >= 1000) {
+              if (
+                postureStatus !== lastStatusRef.current ||
+                currentTime - lastUpdateRef.current >= 1000
+              ) {
+                lastStatusRef.current = postureStatus;
                 lastUpdateRef.current = currentTime;
                 if (typeof onUpdateRef.current === 'function') {
-                  onUpdateRef.current({ postureScore, isSlouching });
+                  onUpdateRef.current({ postureScore, isSlouching, postureStatus });
                 }
               }
             }

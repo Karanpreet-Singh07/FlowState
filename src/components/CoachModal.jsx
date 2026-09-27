@@ -1,17 +1,70 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
+/**
+ * CoachModal Component
+ *
+ * Implements an internal timing state machine for posture status progression.
+ * Since App.jsx cannot be modified, CoachModal derives its own activeMode
+ * from the isSlouching prop by tracking elapsed slouch duration:
+ *   - < 1000ms slouching  → 'good' (no modal)
+ *   - ≥ 1000ms & < 5000ms → 'alert' (dismissible warning)
+ *   - ≥ 5000ms            → 'stretch' (full stretch timer + AI coaching)
+ *
+ * Styled with warm off-white backgrounds to match the dashboard's light-cream theme.
+ */
 export default function CoachModal({ isSlouching, postureScore }) {
+  const [activeMode, setActiveMode] = useState('good'); // 'good' | 'alert' | 'stretch'
   const [advice, setAdvice] = useState('Analyzing your posture...');
-  const [isOpen, setIsOpen] = useState(false);
-  const [countdown, setCountdown] = useState(10);
+  const [countdown, setCountdown] = useState(15);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [alertDismissed, setAlertDismissed] = useState(false);
 
+  // Internal timing refs
+  const slouchStartRef = useRef(null);
+  const intervalRef = useRef(null);
+  const hasCalledApiRef = useRef(false);
+
+  // ── Internal timing state machine ──
+  // Polls slouch duration to derive activeMode independently of App.jsx
   useEffect(() => {
     if (isSlouching) {
-      setIsOpen(true);
+      if (slouchStartRef.current === null) {
+        slouchStartRef.current = Date.now();
+      }
+
+      intervalRef.current = setInterval(() => {
+        const duration = Date.now() - slouchStartRef.current;
+        if (duration < 1000) {
+          setActiveMode('good');
+        } else if (duration < 5000) {
+          setActiveMode('alert');
+        } else {
+          setActiveMode('stretch');
+        }
+      }, 200);
+    } else {
+      // User sat up straight — reset everything UNLESS stretch is active
+      clearInterval(intervalRef.current);
+      if (activeMode !== 'stretch') {
+        slouchStartRef.current = null;
+        setActiveMode('good');
+        setAlertDismissed(false);
+        hasCalledApiRef.current = false;
+      }
+    }
+
+    return () => clearInterval(intervalRef.current);
+  }, [isSlouching, activeMode]);
+
+  // ── Fetch coaching advice ONLY when entering stretch mode ──
+  useEffect(() => {
+    if (activeMode === 'stretch' && !hasCalledApiRef.current) {
+      hasCalledApiRef.current = true;
+      setCountdown(15);
+      setIsCompleted(false);
       fetchCoachingAdvice();
     }
-  }, [isSlouching]);
+  }, [activeMode]);
 
   const fetchCoachingAdvice = async () => {
     try {
@@ -37,35 +90,109 @@ export default function CoachModal({ isSlouching, postureScore }) {
     }
   };
 
+  // ── Stretch countdown timer — ONLY runs in stretch mode ──
   useEffect(() => {
     let timer;
-    if (isOpen && countdown > 0 && !isCompleted) {
+    if (activeMode === 'stretch' && countdown > 0 && !isCompleted) {
       timer = setInterval(() => setCountdown(prev => prev - 1), 1000);
-    } else if (countdown === 0) {
+    } else if (activeMode === 'stretch' && countdown === 0) {
       setIsCompleted(true);
     }
     return () => clearInterval(timer);
-  }, [isOpen, countdown, isCompleted]);
+  }, [activeMode, countdown, isCompleted]);
 
-  if (!isOpen) return null;
+  const handleDismissAlert = () => {
+    setAlertDismissed(true);
+  };
 
+  const handleResumeWork = () => {
+    setActiveMode('good');
+    setCountdown(15);
+    setIsCompleted(false);
+    setAlertDismissed(false);
+    hasCalledApiRef.current = false;
+    slouchStartRef.current = null;
+  };
+
+  // ── Render nothing in 'good' mode ──
+  if (activeMode === 'good') return null;
+
+  // ── ALERT MODE: Dismissible warning (no timer, no API call) ──
+  if (activeMode === 'alert') {
+    if (alertDismissed) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 backdrop-blur-sm">
+        <div className="bg-[#FAF8F5] border border-[#e8ddd0] p-6 rounded-2xl max-w-md w-full shadow-xl">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-2xl">🪑</span>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Posture Check
+            </h2>
+          </div>
+
+          <p className="text-gray-600 mb-5 text-[15px] leading-relaxed">
+            You've been slouching for a few seconds. Try sitting up straight and
+            rolling your shoulders back.
+          </p>
+
+          <div className="flex items-center justify-between bg-[#F3EDE4] rounded-xl px-4 py-3 mb-5">
+            <span className="text-sm text-gray-500 font-medium">Current Score</span>
+            <span className="text-lg font-bold text-gray-900">{postureScore}/100</span>
+          </div>
+
+          <button
+            onClick={handleDismissAlert}
+            className="w-full py-3 rounded-xl font-semibold text-sm transition-all
+                       bg-[#F3EDE4] text-gray-700 hover:bg-[#ebe3d8] active:scale-[0.98]
+                       cursor-pointer"
+          >
+            Got it, thanks
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── STRETCH MODE: Full stretch timer + AI coaching ──
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-      <div className="bg-gray-900 border border-red-500/50 p-6 rounded-2xl max-w-md w-full text-white shadow-2xl">
-        <h2 className="text-xl font-bold text-red-400 mb-2">⚠️ Posture Alert</h2>
-        <p className="text-gray-300 mb-6 text-lg">{advice}</p>
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div className="bg-[#FAF8F5] border border-[#e8ddd0] p-6 rounded-2xl max-w-md w-full shadow-xl">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-2xl">🧘</span>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Time to Stretch
+          </h2>
+        </div>
 
-        <div className="bg-gray-800 p-4 rounded-xl text-center mb-6">
-          <p className="text-sm text-gray-400 mb-1">Hold your stretch:</p>
-          <span className="text-3xl font-extrabold text-blue-400">{countdown}s</span>
+        <p className="text-gray-600 mb-5 text-[15px] leading-relaxed">{advice}</p>
+
+        <div className="bg-[#F3EDE4] p-5 rounded-xl text-center mb-5">
+          <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">
+            Hold your stretch
+          </p>
+          <span className="text-4xl font-extrabold text-gray-900">{countdown}s</span>
+          <div className="mt-3 w-full bg-[#e0d6c8] rounded-full h-1.5 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-1000 ease-linear"
+              style={{
+                width: `${((15 - countdown) / 15) * 100}%`,
+                background: 'linear-gradient(90deg, #e879a8, #d946a8)',
+              }}
+            />
+          </div>
         </div>
 
         <button
           disabled={!isCompleted}
-          onClick={() => { setIsOpen(false); setCountdown(10); setIsCompleted(false); }}
-          className={`w-full py-3 rounded-xl font-bold transition-all ${isCompleted ? 'bg-green-600 hover:bg-green-500 text-white cursor-pointer' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+          onClick={handleResumeWork}
+          className={`w-full py-3 rounded-xl font-semibold text-sm transition-all ${
+            isCompleted
+              ? 'bg-gradient-to-r from-[#ec4899] to-[#d946a8] text-white hover:opacity-90 active:scale-[0.98] cursor-pointer shadow-md'
+              : 'bg-[#F3EDE4] text-gray-400 cursor-not-allowed'
+          }`}
         >
-          {isCompleted ? "Resume Work" : "Complete Stretch First"}
+          {isCompleted ? '✓ Resume Work' : 'Complete Stretch First'}
         </button>
       </div>
     </div>

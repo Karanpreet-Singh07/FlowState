@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="public/flowie-logo.png" alt="FlowState Mascot Logo" width="150" />
+  <img src="public/flowie-logo.png" alt="FlowState Mascot Logo" width="300" />
 
   # FlowState
 

@@ -3,6 +3,7 @@ import Dashboard from './components/Dashboard';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import VisionEngine from './components/VisionEngine';
 import CoachModal from './components/CoachModal';
+import FlowStatePiP from './components/FlowStatePiP';
 import Login from './components/Login';
 import {
   saveWaterEvent,
@@ -36,8 +37,10 @@ function App() {
   // ── Theme state ──
   const [isDark, setIsDark] = useState(false);
 
-  // ── Stretch mode flag — when true, main VisionEngine is paused for optimization ──
+  // ── Stretch mode state — VisionEngine switches to stretch verification ──
   const [isStretchModeActive, setIsStretchModeActive] = useState(false);
+  const [isStretching, setIsStretching] = useState(false);
+  const [stretchLabel, setStretchLabel] = useState('Raise arms to stretch');
 
   // ── Navigation view state ('dashboard' | 'analytics') ──
   const [currentView, setCurrentView] = useState('dashboard');
@@ -96,6 +99,21 @@ function App() {
     }
     if (data.distanceStatus) setDistanceStatus(data.distanceStatus);
     if (data.lightingStatus) setLightingStatus(data.lightingStatus);
+
+    if (typeof data.isStretching !== 'undefined') {
+      setIsStretching(data.isStretching);
+    }
+    if (data.stretchLabel) {
+      setStretchLabel(data.stretchLabel);
+    }
+    if (data.postureStatus === 'stretch' && !isStretchModeActive) {
+      setIsStretchModeActive(true);
+    }
+  };
+
+  const handleResumeFromStretch = () => {
+    setIsStretchModeActive(false);
+    setIsStretching(false);
   };
 
   const handleLogWater = () => {
@@ -224,16 +242,37 @@ function App() {
           onOpenDashboard={() => setCurrentView('analytics')}
           user={user}
           onLogout={handleLogout}
-          cameraFeed={isSessionActive && !isStretchModeActive ? <VisionEngine onUpdate={handleVisionUpdate} /> : null}
+          cameraFeed={isSessionActive ? (
+            <VisionEngine
+              onUpdate={handleVisionUpdate}
+              isStretchMode={isStretchModeActive}
+            />
+          ) : null}
         />
       )}
 
-      {/* CoachModal at root level so it overlays the entire app */}
+      {/* CoachModal: in-page alert, distance popups & stretch modal */}
       <CoachModal
         isSlouching={isSlouching}
         postureScore={postureScore}
         distanceStatus={distanceStatus}
+        isStretchModeActive={isStretchModeActive}
+        isStretching={isStretching}
+        stretchLabel={stretchLabel}
+        onResumeWork={handleResumeFromStretch}
+      />
+
+      {/* PiP: always-on-top Flowie widget + stretch mode */}
+      <FlowStatePiP
+        isSessionActive={isSessionActive}
+        isSlouching={isSlouching}
+        distanceStatus={distanceStatus}
+        postureScore={postureScore}
+        isStretchModeActive={isStretchModeActive}
+        isStretching={isStretching}
+        stretchLabel={stretchLabel}
         onStretchModeChange={setIsStretchModeActive}
+        onResumeWork={handleResumeFromStretch}
       />
     </>
   );

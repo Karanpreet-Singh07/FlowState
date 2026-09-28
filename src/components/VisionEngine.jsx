@@ -9,20 +9,31 @@ import { Loader2, CameraOff } from 'lucide-react';
  * Computes posture score based on vertical nose-to-shoulder distance.
  * Also estimates screen distance and room lighting.
  */
-export default function VisionEngine({ onUpdate }) {
+export default function VisionEngine({ onUpdate, isStretchMode = false }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState(null);
 
-  // Throttle timestamp ref to ensure onUpdate fires only once every 1000ms
+  // Throttle timestamp ref to ensure onUpdate fires only once every 800ms
   const lastUpdateRef = useRef(0);
   const lastVideoTimeRef = useRef(-1);
 
   // Timing pipeline refs for posture status progression
   const slouchStartRef = useRef(null);
   const lastStatusRef = useRef('good');
+  const lastStretchRef = useRef(false);
+
+  // Stretch mode ref so render loop always has latest value
+  const isStretchModeRef = useRef(isStretchMode);
+  useEffect(() => {
+    isStretchModeRef.current = isStretchMode;
+    if (!isStretchMode) {
+      slouchStartRef.current = null;
+      lastStatusRef.current = 'good';
+    }
+  }, [isStretchMode]);
 
   // Reference to avoid stale closure in the requestAnimationFrame loop
   const onUpdateRef = useRef(onUpdate);
@@ -164,6 +175,10 @@ export default function VisionEngine({ onUpdate }) {
             const nose = landmarks[0];
             const leftShoulder = landmarks[11];
             const rightShoulder = landmarks[12];
+            const leftElbow = landmarks[13];
+            const rightElbow = landmarks[14];
+            const leftWrist = landmarks[15];
+            const rightWrist = landmarks[16];
 
             if (nose && leftShoulder && rightShoulder) {
               const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
@@ -177,17 +192,77 @@ export default function VisionEngine({ onUpdate }) {
 
               const isSlouching = postureScore < 70;
 
+              // ── Stretch Pose Analysis ──
+              let isStretching = false;
+              let stretchLabel = 'Raise arms to stretch';
+
+              if (leftWrist && rightWrist) {
+                const shoulderWidth = Math.abs(rightShoulder.x - leftShoulder.x);
+                const wristSpan = Math.abs(rightWrist.x - leftWrist.x);
+
+                // Check 1: Either wrist raised above shoulder level
+                const leftArmRaised = leftWrist.y < leftShoulder.y - 0.04;
+                const rightArmRaised = rightWrist.y < rightShoulder.y - 0.04;
+                const armsRaised = leftArmRaised || rightArmRaised;
+
+                // Check 2: Arms extended wide (T-pose)
+                const armsExtended = wristSpan > shoulderWidth * 1.35;
+
+                // Check 3: Overhead stretch (wrists above nose)
+                const overhead = leftWrist.y < nose.y && rightWrist.y < nose.y;
+
+                isStretching = armsRaised || armsExtended || overhead;
+                if (isStretching) {
+                  stretchLabel = armsRaised
+                    ? 'Arms Raised ✓'
+                    : armsExtended
+                    ? 'Arms Extended ✓'
+                    : 'Overhead Stretch ✓';
+                }
+              }
+
+              // Color based on active mode
+              const activeColor = isStretchModeRef.current
+                ? (isStretching ? '#10B981' : '#F59E0B')
+                : (isSlouching ? '#EF4444' : '#10B981');
+
               // Draw skeleton connectors & keypoints on top of mirrored video
               drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, {
-                color: isSlouching ? '#EF4444' : '#10B981',
+                color: activeColor,
                 lineWidth: 3,
               });
 
               drawingUtils.drawLandmarks(landmarks, {
                 color: '#3B82F6',
-                fillColor: isSlouching ? '#EF4444' : '#10B981',
-                radius: 3,
+                fillColor: activeColor,
+                radius: 3.5,
               });
+
+              // If in stretch mode, draw on-canvas live guidance banner
+              if (isStretchModeRef.current) {
+                canvasCtx.save();
+                const bannerWidth = Math.min(340, canvas.width - 32);
+                const bannerHeight = 36;
+                const startX = (canvas.width - bannerWidth) / 2;
+                canvasCtx.fillStyle = isStretching ? 'rgba(16, 185, 129, 0.92)' : 'rgba(245, 158, 11, 0.92)';
+                canvasCtx.beginPath();
+                if (canvasCtx.roundRect) {
+                  canvasCtx.roundRect(startX, 14, bannerWidth, bannerHeight, 8);
+                } else {
+                  canvasCtx.rect(startX, 14, bannerWidth, bannerHeight);
+                }
+                canvasCtx.fill();
+                canvasCtx.fillStyle = '#FFFFFF';
+                canvasCtx.font = 'bold 13px system-ui, sans-serif';
+                canvasCtx.textAlign = 'center';
+                canvasCtx.textBaseline = 'middle';
+                canvasCtx.fillText(
+                  isStretching ? '✓ STRETCH DETECTED - HOLD IT!' : '🧘 RAISE ARMS TO STRETCH',
+                  canvas.width / 2,
+                  32
+                );
+                canvasCtx.restore();
+              }
 
               // Slouch duration pipeline
               if (!isSlouching) {
@@ -218,33 +293,38 @@ export default function VisionEngine({ onUpdate }) {
                 distanceStatus = 'Too far';
               }
 
-              // Lighting estimation from canvas pixel luminance
+              // Lighting estimation from canvas pixel luminance (skip during stretch for optimization)
               let lightingStatus = 'Good';
-              try {
-                const midX = Math.floor(canvas.width / 2);
-                const midY = Math.floor(canvas.height / 2);
-                const sample = canvasCtx.getImageData(Math.max(0, midX - 30), Math.max(0, midY - 30), 60, 60);
-                let totalLum = 0;
-                for (let i = 0; i < sample.data.length; i += 4) {
-                  totalLum += sample.data[i] * 0.299 + sample.data[i + 1] * 0.587 + sample.data[i + 2] * 0.114;
+              if (!isStretchModeRef.current) {
+                try {
+                  const midX = Math.floor(canvas.width / 2);
+                  const midY = Math.floor(canvas.height / 2);
+                  const sample = canvasCtx.getImageData(Math.max(0, midX - 30), Math.max(0, midY - 30), 60, 60);
+                  let totalLum = 0;
+                  for (let i = 0; i < sample.data.length; i += 4) {
+                    totalLum += sample.data[i] * 0.299 + sample.data[i + 1] * 0.587 + sample.data[i + 2] * 0.114;
+                  }
+                  const avgLum = totalLum / (sample.data.length / 4);
+                  if (avgLum < 45) {
+                    lightingStatus = 'Too Dim';
+                  } else if (avgLum > 215) {
+                    lightingStatus = 'Too Bright';
+                  }
+                } catch {
+                  // Ignore canvas security errors if any
                 }
-                const avgLum = totalLum / (sample.data.length / 4);
-                if (avgLum < 45) {
-                  lightingStatus = 'Too Dim';
-                } else if (avgLum > 215) {
-                  lightingStatus = 'Too Bright';
-                }
-              } catch {
-                // Ignore canvas security errors if any
               }
 
-              // Throttled parent update
+              // Throttled parent update (fast updates when stretch state changes)
               const currentTime = performance.now();
+              const stretchToggled = isStretchModeRef.current && (isStretching !== lastStretchRef.current);
               if (
+                stretchToggled ||
                 postureStatus !== lastStatusRef.current ||
-                currentTime - lastUpdateRef.current >= 1000
+                currentTime - lastUpdateRef.current >= 800
               ) {
                 lastStatusRef.current = postureStatus;
+                lastStretchRef.current = isStretching;
                 lastUpdateRef.current = currentTime;
                 if (typeof onUpdateRef.current === 'function') {
                   onUpdateRef.current({
@@ -253,6 +333,8 @@ export default function VisionEngine({ onUpdate }) {
                     postureStatus,
                     distanceStatus,
                     lightingStatus,
+                    isStretching,
+                    stretchLabel,
                   });
                 }
               }

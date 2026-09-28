@@ -32,3 +32,111 @@ export const saveWaterEvent = () => {
 export const clearSession = () => {
   localStorage.removeItem(SESSION_KEY);
 };
+
+const HISTORY_KEY = 'flowstate_session_history';
+
+// Retrieve saved past sessions
+export const getStoredHistory = () => {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (error) {
+    console.error("Failed to load history from local storage.", error);
+    return [];
+  }
+};
+
+// Save session history
+export const saveStoredHistory = (history) => {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  } catch (error) {
+    console.error("Failed to save history to local storage.", error);
+  }
+};
+
+// Clear session history
+export const clearStoredHistory = () => {
+  try {
+    localStorage.removeItem(HISTORY_KEY);
+  } catch (error) {
+    console.error("Failed to clear history from local storage.", error);
+  }
+};
+
+/**
+ * Calculates current consecutive day streak.
+ * A day counts towards the streak if at least one session was completed.
+ * Streak is 0 if no sessions exist, or if the most recent session was before yesterday.
+ *
+ * BUG FIX: new Date("YYYY-MM-DD") parses as UTC midnight, which shifts to the
+ * PREVIOUS day in timezones ahead of UTC (e.g. India +05:30 → "2026-09-28" UTC
+ * becomes "2026-09-27" local). We fix this by working entirely with local date
+ * strings using the 3-arg Date constructor (year, month, day) which is local time.
+ */
+export const calculateStreak = (history) => {
+  if (!history || !Array.isArray(history) || history.length === 0) {
+    return 0;
+  }
+
+  // Returns "YYYY-MM-DD" in LOCAL time (not UTC) for a given Date object
+  const toLocalDateStr = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  // Subtracts 1 day from a "YYYY-MM-DD" string, returns new "YYYY-MM-DD" string
+  // Uses 3-arg Date constructor so arithmetic stays in local time
+  const subtractDay = (dateStr) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d); // local time — no UTC shift
+    date.setDate(date.getDate() - 1);
+    return toLocalDateStr(date);
+  };
+
+  // Extract unique local date strings from session timestamps
+  const dateSet = new Set();
+  for (const session of history) {
+    const rawDate = session.timestamp || session.date;
+    if (rawDate) {
+      // ISO timestamps (e.g. "2026-09-28T05:00:00.000Z") are absolute points in
+      // time — new Date() on them is correct. We then convert to local date string.
+      const d = new Date(rawDate);
+      if (!isNaN(d.getTime())) {
+        dateSet.add(toLocalDateStr(d));
+      }
+    }
+  }
+
+  if (dateSet.size === 0) return 0;
+
+  // Sort descending (newest first)
+  const uniqueDates = Array.from(dateSet).sort().reverse();
+
+  const todayStr = toLocalDateStr(new Date());
+  const yesterdayStr = subtractDay(todayStr);
+
+  const latestDate = uniqueDates[0];
+
+  // Streak is broken if the most recent session was before yesterday
+  if (latestDate !== todayStr && latestDate !== yesterdayStr) {
+    return 0;
+  }
+
+  // Count consecutive days going backwards
+  let streak = 0;
+  let expectedStr = latestDate;
+
+  for (const dStr of uniqueDates) {
+    if (dStr === expectedStr) {
+      streak++;
+      expectedStr = subtractDay(expectedStr);
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+};

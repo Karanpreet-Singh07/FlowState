@@ -1,6 +1,7 @@
 import { useState } from "react"
-import { Zap, Mail, Lock, ArrowRight } from "lucide-react"
+import { Mail, Lock, ArrowRight } from "lucide-react"
 import { MeshGradientSVG } from "./ui/shader-svg"
+import FlowieLogo from "./ui/FlowieLogo"
 
 export default function Login({ onLogin = () => {} }) {
   const [email, setEmail] = useState("")
@@ -17,11 +18,9 @@ export default function Login({ onLogin = () => {} }) {
         
         {/* Logo & Header */}
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] shadow-md mb-3">
-            <Zap className="h-6 w-6" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
-            Welcome to FlowState
+          <FlowieLogo size={56} className="mb-2" />
+          <h1 className="text-3xl font-extrabold tracking-tight">
+            Welcome to <span className="text-[var(--foreground)]">Flow</span><span className="text-[var(--primary)]">State</span>
           </h1>
           <p className="mt-1 text-xs font-semibold text-[var(--muted-foreground)]">
             Sign in to start tracking your focus & health
@@ -96,7 +95,7 @@ export default function Login({ onLogin = () => {} }) {
         {/* Google Sign-In Button */}
         <button
           type="button"
-          onClick={() => onLogin({ name: "FlowState User" })}
+          onClick={() => onLogin({ name: "FlowState User", email: "user@flowstate.ai" })}
           className="flex w-full items-center justify-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--background)] py-2.5 text-sm font-bold text-[var(--foreground)] shadow-sm hover:bg-[var(--sidebar)] transition-all cursor-pointer"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
@@ -119,6 +118,17 @@ export default function Login({ onLogin = () => {} }) {
           </svg>
           Sign in with Google
         </button>
+
+        {/* Quick Guest Access */}
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => onLogin({ name: "Guest User", goal: "Stay focused & improve posture" })}
+            className="text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--primary)] hover:underline transition-colors cursor-pointer"
+          >
+            Or explore as Guest &rarr;
+          </button>
+        </div>
       </div>
     </div>
   )

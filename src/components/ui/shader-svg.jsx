@@ -2,14 +2,16 @@ import { MeshGradient } from "@paper-design/shaders-react";
 import { motion } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 
-export function MeshGradientSVG({ isSessionActive = false, isSlouching = false }) {
+export function MeshGradientSVG({ isSessionActive = false, isSlouching = false, isDark = false }) {
   const containerRef = useRef(null);
 
   // Color themes for the 3 mascot states
   // Active + Good Posture = Vibrant Emerald & Mint Green
   const goodColors = ["#A7F3D0", "#34D399", "#10B981", "#047857", "#064E3B"];
   const slouchColors = ["#FF4D4D", "#F87171", "#DC2626", "#7F1D1D", "#1A1A2E"]; // Pulsing Red
-  const idleColors = ["#64748B", "#475569", "#334155", "#1E293B", "#0F172A"];   // Muted Gray
+  const idleColorsDark  = ["#CBD5E1", "#94A3B8", "#B0BEC5", "#E2E8F0", "#78909C"];  // Light silver for dark mode
+  const idleColorsLight = ["#64748B", "#475569", "#334155", "#1E293B", "#0F172A"];  // Muted dark gray for light mode
+  const idleColors = isDark ? idleColorsDark : idleColorsLight;
 
   const activeColors = !isSessionActive 
     ? idleColors 

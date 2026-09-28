@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react"
 import { MeshGradientSVG } from "./ui/shader-svg"
 import SessionHistoryDrawer from "./SessionHistoryDrawer"
+import FlowieLogo from "./ui/FlowieLogo"
 import {
   Activity,
   Droplets,
@@ -8,8 +8,6 @@ import {
   Sun,
   Moon,
   AlertTriangle,
-  Zap,
-  Play,
   Target,
   LogOut,
   Power,
@@ -24,7 +22,7 @@ export default function Dashboard({
   isSessionActive = false,
   distanceStatus = "Optimal",
   lightingStatus = "Good",
-  sessionTime = "45:00",
+  sessionTime = "00:00",
   user = { name: "there", goal: "Stay focused" },
   onLogout = () => {},
   onLogWater = () => {},
@@ -36,18 +34,11 @@ export default function Dashboard({
   onCloseHistory = () => {},
   onClearHistory = () => {},
   onOpenDashboard = () => {},
-  streak = 3,
+  streak = 0,
   isDark = false,
   onToggleTheme = () => {},
   cameraFeed = null,
 }) {
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add("dark")
-    } else {
-      document.documentElement.classList.remove("dark")
-    }
-  }, [isDark])
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[var(--background)] text-[var(--foreground)] font-sans antialiased overflow-hidden transition-colors duration-200">
@@ -66,18 +57,17 @@ export default function Dashboard({
             >
               <PanelLeft className="h-4 w-4 text-[var(--primary)]" />
               {history.length > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--primary)] px-1 font-mono text-[10px] font-extrabold text-[var(--primary-foreground)]">
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--primary)] px-1 font-sans text-[10px] font-extrabold text-[var(--primary-foreground)]">
                   {history.length}
                 </span>
               )}
             </button>
 
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm">
-                <Zap className="h-4 w-4" />
-              </div>
-              <span className="text-lg font-bold tracking-tight text-[var(--foreground)]">
-                FlowState
+              <FlowieLogo size={36} />
+              <span className="text-xl font-extrabold tracking-tight">
+                <span className="text-[var(--foreground)]">Flow</span>
+                <span className="text-[var(--primary)]">State</span>
               </span>
             </div>
           </div>
@@ -86,7 +76,10 @@ export default function Dashboard({
           <div className="flex items-center gap-3">
             
             {/* Bold, Solid High-Contrast Streak Badge */}
-            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-extrabold text-sm shadow-md">
+            <div
+              title={`${streak} Day Streak`}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-extrabold text-sm shadow-md select-none"
+            >
               <Flame className="h-4 w-4 fill-white text-white animate-pulse" />
               <span>{streak}</span>
             </div>
@@ -113,7 +106,7 @@ export default function Dashboard({
                   isSessionActive ? "animate-pulse bg-emerald-500" : "bg-gray-400"
                 }`}
               />
-              <span className="font-mono text-sm font-bold tabular-nums text-[var(--card-foreground)]">
+              <span className="font-sans text-sm font-bold tabular-nums text-[var(--card-foreground)]">
                 {sessionTime}
               </span>
             </div>
@@ -170,7 +163,7 @@ export default function Dashboard({
 
             {/* Ghost Mascot */}
             <div className="py-1 w-full flex justify-center scale-75 origin-center">
-              <MeshGradientSVG isSessionActive={isSessionActive} isSlouching={isSlouching} />
+              <MeshGradientSVG isSessionActive={isSessionActive} isSlouching={isSlouching} isDark={isDark} />
             </div>
 
             <p className="text-xs font-semibold text-[var(--muted-foreground)] -mt-2">
@@ -202,27 +195,25 @@ export default function Dashboard({
 
               <button
                 type="button"
-                onClick={onLogWater}
-                className="mt-2.5 flex w-full items-center justify-between rounded-xl bg-[var(--primary)] px-4 py-2.5 text-left font-bold text-[var(--primary-foreground)] shadow-md transition-all hover:opacity-90 active:scale-[0.99] cursor-pointer"
+                onClick={isSessionActive ? onLogWater : undefined}
+                disabled={!isSessionActive}
+                className={`mt-2.5 flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-left font-bold shadow-md transition-all active:scale-[0.99] ${
+                  isSessionActive
+                    ? "bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 cursor-pointer"
+                    : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed opacity-60"
+                }`}
               >
                 <span className="flex items-center gap-2.5 text-sm">
-                  <Droplets className="h-4 w-4 text-[var(--secondary)]" />
+                  <Droplets className={`h-4 w-4 ${isSessionActive ? "text-[var(--secondary)]" : "text-gray-400 dark:text-gray-500"}`} />
                   Log Water
                 </span>
-                <span className="flex h-6 min-w-6 items-center justify-center rounded-lg bg-black/25 font-mono text-sm font-extrabold tabular-nums text-white">
+                <span className={`flex h-6 min-w-6 items-center justify-center rounded-lg font-sans text-sm font-extrabold tabular-nums ${
+                  isSessionActive ? "bg-black/25 text-white" : "bg-black/10 text-gray-500 dark:text-gray-400"
+                }`}>
                   {waterCount}
                 </span>
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={onTestSlouch}
-              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm font-bold text-[var(--foreground)] shadow-sm transition-all hover:bg-[var(--sidebar)] cursor-pointer"
-            >
-              <Play className="h-3.5 w-3.5 fill-current text-[var(--secondary)]" />
-              Test Slouch Modal
-            </button>
           </div>
         </aside>
 
@@ -253,8 +244,24 @@ export default function Dashboard({
               Status
             </span>
             <div className="flex items-center gap-2.5">
-              <span className="text-sm font-extrabold text-[var(--foreground)]">Looking good</span>
-              <span className="text-base">😎</span>
+              {!isSessionActive ? (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-gray-400" />
+                  <span className="text-sm font-extrabold text-[var(--muted-foreground)]">Offline</span>
+                </>
+              ) : isSlouching ? (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                  <span className="text-sm font-extrabold text-rose-500">Slouching detected</span>
+                  <span className="text-base">⚠️</span>
+                </>
+              ) : (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-sm font-extrabold text-[var(--foreground)]">Looking good</span>
+                  <span className="text-base">😎</span>
+                </>
+              )}
             </div>
           </div>
         </section>
@@ -264,78 +271,116 @@ export default function Dashboard({
           
           {/* Posture Health */}
           <div
-            className={`rounded-2xl border p-4 shadow-sm transition-all flex-1 flex flex-col justify-between ${
-              isSlouching
+            className={`rounded-2xl border p-4 sm:p-5 shadow-sm transition-all flex-1 flex flex-col justify-between ${
+              isSessionActive && isSlouching
                 ? "border-[var(--destructive)] bg-[var(--destructive)]/15 text-[var(--destructive)]"
                 : "border-[var(--border)] bg-[var(--card)] text-[var(--card-foreground)]"
             }`}
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-[var(--muted-foreground)]">
+                <span className="text-sm font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
                   Posture Health
                 </span>
-                {isSlouching ? (
+                {!isSessionActive ? (
+                  <Activity className="h-5 w-5 text-gray-400" />
+                ) : isSlouching ? (
                   <AlertTriangle className="h-5 w-5 text-[var(--destructive)]" />
                 ) : (
                   <Activity className="h-5 w-5 text-[var(--secondary)]" />
                 )}
               </div>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span
-                  className={`font-mono text-3xl font-extrabold tabular-nums ${
-                    isSlouching ? "text-[var(--destructive)]" : "text-[var(--foreground)]"
-                  }`}
-                >
-                  {postureScore}
-                </span>
-                <span className="font-mono text-xs font-bold text-[var(--muted-foreground)]">
-                  /100
-                </span>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                {isSessionActive ? (
+                  <>
+                    <span
+                      className={`font-sans text-4xl sm:text-5xl font-medium tabular-nums ${
+                        isSlouching ? "text-[var(--destructive)]" : "text-[var(--foreground)]"
+                      }`}
+                    >
+                      {postureScore}
+                    </span>
+                    <span className="font-sans text-sm sm:text-base font-normal text-[var(--muted-foreground)]">
+                      /100
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-sans text-4xl sm:text-5xl font-light text-[var(--muted-foreground)]/60">
+                    --
+                  </span>
+                )}
               </div>
             </div>
-            <p className="text-xs font-bold text-[var(--muted-foreground)] pt-1">
-              {isSlouching ? "Slouching detected" : "Good alignment"}
+            <p className="text-sm font-bold text-[var(--muted-foreground)] pt-1">
+              {!isSessionActive
+                ? "Start session to monitor"
+                : isSlouching
+                ? "Slouching detected"
+                : "Good alignment"}
             </p>
           </div>
 
           {/* Screen Distance */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm flex-1 flex flex-col justify-between">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 sm:p-5 shadow-sm flex-1 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-[var(--muted-foreground)]">
+                <span className="text-sm font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
                   Screen Distance
                 </span>
-                <Monitor className="h-5 w-5 text-[var(--secondary)]" />
+                <Monitor className={`h-5 w-5 ${isSessionActive ? "text-[var(--secondary)]" : "text-gray-400"}`} />
               </div>
-              <div className="mt-1">
-                <span className="text-xl font-extrabold text-[var(--card-foreground)]">
-                  {distanceStatus}
-                </span>
+              <div className="mt-2">
+                {isSessionActive ? (
+                  <span className="text-3xl sm:text-4xl font-medium text-[var(--card-foreground)]">
+                    {distanceStatus || "Optimal"}
+                  </span>
+                ) : (
+                  <span className="font-sans text-4xl sm:text-5xl font-light text-[var(--muted-foreground)]/60">
+                    --
+                  </span>
+                )}
               </div>
             </div>
-            <p className="text-xs font-bold text-[var(--muted-foreground)] pt-1">
-              Ideal viewing range
+            <p className="text-sm font-bold text-[var(--muted-foreground)] pt-1">
+              {!isSessionActive
+                ? "Waiting for camera..."
+                : distanceStatus === "Too close"
+                ? "Move further back"
+                : distanceStatus === "Too far"
+                ? "Move closer to screen"
+                : "Ideal viewing range"}
             </p>
           </div>
 
           {/* Room Lighting */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm flex-1 flex flex-col justify-between">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 sm:p-5 shadow-sm flex-1 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-[var(--muted-foreground)]">
+                <span className="text-sm font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
                   Room Lighting
                 </span>
-                <Sun className="h-5 w-5 text-[var(--accent)]" />
+                <Sun className={`h-5 w-5 ${isSessionActive ? "text-[var(--accent)]" : "text-gray-400"}`} />
               </div>
-              <div className="mt-1">
-                <span className="text-xl font-extrabold text-[var(--card-foreground)]">
-                  {lightingStatus}
-                </span>
+              <div className="mt-2">
+                {isSessionActive ? (
+                  <span className="text-3xl sm:text-4xl font-medium text-[var(--card-foreground)]">
+                    {lightingStatus || "Good"}
+                  </span>
+                ) : (
+                  <span className="font-sans text-4xl sm:text-5xl font-light text-[var(--muted-foreground)]/60">
+                    --
+                  </span>
+                )}
               </div>
             </div>
-            <p className="text-xs font-bold text-[var(--muted-foreground)] pt-1">
-              Balanced brightness
+            <p className="text-sm font-bold text-[var(--muted-foreground)] pt-1">
+              {!isSessionActive
+                ? "Waiting for camera..."
+                : lightingStatus === "Too Dim"
+                ? "Increase room lighting"
+                : lightingStatus === "Too Bright"
+                ? "Reduce glare/brightness"
+                : "Balanced brightness"}
             </p>
           </div>
 
@@ -350,6 +395,8 @@ export default function Dashboard({
         history={history}
         onClearHistory={onClearHistory}
         onOpenDashboard={onOpenDashboard}
+        user={user}
+        onLogout={onLogout}
       />
     </div>
   )

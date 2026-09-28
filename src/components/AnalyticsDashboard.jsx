@@ -1,47 +1,33 @@
 import React from "react";
-import { Zap, Flame, Play, History, Calendar, Clock, Activity, Droplets, Target, LogOut, Sun, Moon } from "lucide-react";
+import { Flame, Play, History, Calendar, Clock, Activity, Droplets, Target, LogOut, Sun, Moon } from "lucide-react";
+import SessionHeatmap from "./SessionHeatmap";
+import FlowieLogo from "./ui/FlowieLogo";
 
 export default function AnalyticsDashboard({
-  user,
+  user = { name: "there", goal: "Stay focused" },
   onLogout,
   history = [],
-  streak = 3,
+  streak = 0,
   onStartSession,
   isDark,
   onToggleTheme,
 }) {
-  // Generate a mock LeetCode-style 30-day activity grid
-  const generateHeatmapDays = () => {
-    const days = [];
-    const today = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split("T")[0];
-      
-      // Check if any history item matches this date
-      const hasSession = history.some((item) => {
-        // Simple mock check or map to real dates if available
-        return i % 3 === 0 || i === 1 || i === 5; // Fake some activity for demo look
-      });
-
-      days.push({ date: dateStr, active: hasSession, level: hasSession ? Math.floor(Math.random() * 3) + 1 : 0 });
-    }
-    return days;
-  };
-
-  const heatmapDays = generateHeatmapDays();
-
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] font-sans antialiased transition-colors duration-200">
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--sidebar)]/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm">
-              <Zap className="h-5 w-5" />
+          <div className="flex items-center gap-2.5">
+            <FlowieLogo size={36} />
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-extrabold tracking-tight">
+                <span className="text-[var(--foreground)]">Flow</span>
+                <span className="text-[var(--primary)]">State</span>
+              </span>
+              <span className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] px-2 py-0.5 rounded-md bg-[var(--card)] border border-[var(--border)]">
+                Analytics
+              </span>
             </div>
-            <span className="text-xl font-bold tracking-tight">FlowState Analytics</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -82,14 +68,14 @@ export default function AnalyticsDashboard({
         {/* Top Banner / Launch Workspace Action */}
         <div className="flex flex-col md:flex-row items-center justify-between p-6 rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm gap-4">
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight">Welcome back, {user.name}! 🚀</h1>
+            <h1 className="text-xl font-extrabold tracking-tight">Welcome back, {user.name}!</h1>
             <p className="text-xs text-[var(--muted-foreground)] mt-1">
               You have completed {history.length} focus sessions. Ready to start another round?
             </p>
           </div>
           <button
             onClick={onStartSession}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-lg transition-all cursor-pointer"
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--primary)] hover:opacity-90 text-[var(--primary-foreground)] font-bold text-sm shadow-md transition-all active:scale-[0.98] cursor-pointer"
           >
             <Play className="h-4 w-4 fill-current" />
             Launch Live Workspace
@@ -100,53 +86,30 @@ export default function AnalyticsDashboard({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm space-y-1">
             <span className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">Total Sessions</span>
-            <p className="text-3xl font-extrabold font-mono">{history.length}</p>
+            <p className="text-3xl font-extrabold font-sans">{history.length}</p>
           </div>
           <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm space-y-1">
             <span className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">Average Posture Score</span>
-            <p className="text-3xl font-extrabold font-mono text-emerald-500">
+            <p className="text-3xl font-extrabold font-sans text-emerald-500">
               {history.length > 0 
                 ? Math.round(history.reduce((acc, curr) => acc + curr.avgPosture, 0) / history.length) 
-                : 85}%
+                : 0}%
             </p>
           </div>
           <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm space-y-1">
             <span className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">Total Water Logged</span>
-            <p className="text-3xl font-extrabold font-mono text-blue-500">
+            <p className="text-3xl font-extrabold font-sans text-blue-500">
               {history.reduce((acc, curr) => acc + curr.waterCount, 0)} Glasses
             </p>
           </div>
         </div>
 
-        {/* LeetCode-style Activity Heatmap Section */}
-        <div className="p-6 rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
-              Focus & Posture Activity (Last 30 Days)
-            </h2>
-            <span className="text-xs text-[var(--muted-foreground)]">🔥 {streak} Day Streak</span>
-          </div>
-          
-          {/* Heatmap Grid */}
-          <div className="flex flex-wrap gap-2 pt-2">
-            {heatmapDays.map((day, idx) => (
-              <div
-                key={idx}
-                title={`${day.date}: ${day.active ? "Active session" : "No activity"}`}
-                className={`h-7 w-7 rounded-md transition-all cursor-pointer ${
-                  day.level === 3 ? "bg-emerald-500" :
-                  day.level === 2 ? "bg-emerald-400/80" :
-                  day.level === 1 ? "bg-emerald-400/30" : "bg-[var(--background)] border border-[var(--border)]"
-                }`}
-              />
-            ))}
-          </div>
-          <p className="text-[11px] text-[var(--muted-foreground)]">
-            Each block represents your daily consistency. Keep your streak alive by logging at least one session a day!
-          </p>
+        {/* Activity Heatmap Card */}
+        <div className="p-6 rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm">
+          <SessionHeatmap history={history} />
         </div>
 
-        {/* Session History List */}
+        {/* Session History List — scrollable */}
         <div className="p-6 rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm space-y-4">
           <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
             Recent Session Logs
@@ -159,7 +122,7 @@ export default function AnalyticsDashboard({
               <p className="text-xs mt-1">Launch the live workspace, complete a session, and hit "End Session" to see your data here.</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1 scrollbar-thin">
               {history.map((session) => (
                 <div key={session.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-xl border border-[var(--border)] bg-[var(--background)] gap-4">
                   <div className="flex items-center gap-3">

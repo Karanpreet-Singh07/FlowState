@@ -2,8 +2,8 @@ import React from "react";
 import { Zap, Flame, ArrowLeft, Calendar, Clock, Activity, Droplets, Sun, Moon } from "lucide-react";
 
 export default function AnalyticsPage({
-  user,
-  streak = 3,
+  user = { name: "there", goal: "Stay focused" },
+  streak = 0,
   history = [],
   onBackToWorkspace,
   isDark,
@@ -84,7 +84,7 @@ export default function AnalyticsPage({
           <div className="overflow-x-auto pb-2">
             <div className="min-w-[500px] space-y-2">
               {/* Month Labels */}
-              <div className="flex justify-between text-[11px] text-[var(--muted-foreground)] px-1 font-mono font-semibold">
+              <div className="flex justify-between text-[11px] text-[var(--muted-foreground)] px-1 font-sans font-semibold">
                 <span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span>
                 <span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span>
                 <span>Jan</span><span>Feb</span>

@@ -1,5 +1,6 @@
 import React from "react";
-import { X, History, LayoutDashboard, Clock, Activity, Droplets, Calendar, Trash2 } from "lucide-react";
+import { X, History, LayoutDashboard, Clock, Activity, Droplets, Calendar, Trash2, LogOut } from "lucide-react";
+import FlowieLogo from "./ui/FlowieLogo";
 
 export default function SessionHistoryDrawer({
   isOpen,
@@ -7,6 +8,8 @@ export default function SessionHistoryDrawer({
   history = [],
   onClearHistory,
   onOpenDashboard,
+  user,
+  onLogout,
 }) {
   if (!isOpen) return null;
 
@@ -21,11 +24,12 @@ export default function SessionHistoryDrawer({
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[var(--border)]">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm font-bold">
-              FS
-            </div>
+            <FlowieLogo size={36} />
             <div>
-              <h2 className="text-base font-bold">FlowState Menu</h2>
+              <h2 className="text-base font-extrabold tracking-tight">
+                <span className="text-[var(--foreground)]">Flow</span>
+                <span className="text-[var(--primary)]">State</span> Menu
+              </h2>
               <p className="text-xs text-[var(--muted-foreground)]">Navigation & History</p>
             </div>
           </div>
@@ -107,8 +111,8 @@ export default function SessionHistoryDrawer({
         </div>
 
         {/* Footer */}
-        {history.length > 0 && (
-          <div className="p-4 border-t border-[var(--border)] bg-[var(--card)]">
+        <div className="p-4 border-t border-[var(--border)] bg-[var(--card)] space-y-2">
+          {history.length > 0 && (
             <button
               onClick={onClearHistory}
               className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-600 text-xs font-bold transition-all cursor-pointer"
@@ -116,8 +120,22 @@ export default function SessionHistoryDrawer({
               <Trash2 className="h-3.5 w-3.5" />
               Clear History
             </button>
-          </div>
-        )}
+          )}
+
+          {onLogout && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onLogout();
+              }}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-[var(--border)] bg-[var(--background)] hover:bg-red-600 hover:text-white text-xs font-bold transition-all cursor-pointer"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign Out
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

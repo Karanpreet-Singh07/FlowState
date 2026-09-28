@@ -34,26 +34,26 @@ All camera processing is computed **100% locally on your device** via MediaPipe 
 
 ## ✨ Key Features
 
-### 👁️ Real-Time Computer Vision Engine
+### Real-Time Computer Vision Engine
 - **Posture Score & Slouch Detection**: Calculates body alignment using MediaPipe pose landmarks and triggers alerts when slouching is detected.
 - **Screen Distance Monitoring**: Warns when you lean too close to prevent eye strain.
 - **Ambient Lighting Analysis**: Evaluates room lighting conditions for optimal focus environments.
 
-### 👻 Interactive AI Companion ("Flowie")
+### Interactive AI Companion ("Flowie")
 - **Dynamic Mascot**: Features animated shader mesh graphics that react to your focus state.
 - **Contextual States**: Automatically transitions between *Asleep* (idle), *Active* (focused), and *Alert* (slouching detected).
 
-### 📊 Analytics & LeetCode-Style Activity Heatmap
+### Analytics & LeetCode-Style Activity Heatmap
 - **Month-Grouped Focus Graph**: Displays daily focus activity grouped by month with zero text truncation and distinct month separators.
 - **Brand Theme Integration**: Adaptive color intensity matching the signature Solarized magenta/pink theme across light and dark modes.
 - **Streak & Hydration Counters**: Tracks consecutive focus days and logs in-session water intake goals.
 
-### 🌓 Solarized Theme System
+### Solarized Theme System
 - **Light & Dark Mode**: Instant toggling powered by CSS custom properties and high-contrast color tokens.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Component | Technology |
 | :--- | :--- |

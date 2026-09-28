@@ -175,7 +175,7 @@ export default function VisionEngine({ onUpdate }) {
               const clampedScore = Math.max(0, Math.min(1, normalizedDist));
               const postureScore = Math.round(clampedScore * 100);
 
-              const isSlouching = postureScore < 50;
+              const isSlouching = postureScore < 65;
 
               // Draw skeleton connectors & keypoints on top of mirrored video
               drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, {

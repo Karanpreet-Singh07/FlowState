@@ -36,6 +36,9 @@ function App() {
   // ── Theme state ──
   const [isDark, setIsDark] = useState(false);
 
+  // ── Stretch mode flag — when true, main VisionEngine is paused for optimization ──
+  const [isStretchModeActive, setIsStretchModeActive] = useState(false);
+
   // ── Navigation view state ('dashboard' | 'analytics') ──
   const [currentView, setCurrentView] = useState('dashboard');
 
@@ -221,7 +224,7 @@ function App() {
           onOpenDashboard={() => setCurrentView('analytics')}
           user={user}
           onLogout={handleLogout}
-          cameraFeed={isSessionActive ? <VisionEngine onUpdate={handleVisionUpdate} /> : null}
+          cameraFeed={isSessionActive && !isStretchModeActive ? <VisionEngine onUpdate={handleVisionUpdate} /> : null}
         />
       )}
 
@@ -229,6 +232,8 @@ function App() {
       <CoachModal
         isSlouching={isSlouching}
         postureScore={postureScore}
+        distanceStatus={distanceStatus}
+        onStretchModeChange={setIsStretchModeActive}
       />
     </>
   );

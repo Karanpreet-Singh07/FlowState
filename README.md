@@ -23,27 +23,27 @@
 
 ## ✨ Key Features
 
-### 👁️ Real-Time Computer Vision Engine
+### Real-Time Computer Vision Engine
 - **Posture Score & Slouch Detection**: Calculates real-time body alignment using MediaPipe landmark tracking. Prompts gentle posture correction alerts when slouching is detected.
 - **Screen Distance Monitoring**: Ensures optimal viewing distances to prevent digital eye strain.
 - **Ambient Lighting Analysis**: Evaluates room brightness for ideal working conditions.
 
-### 👻 Interactive AI Companion ("Flowie")
+### Interactive AI Companion ("Flowie")
 - **Dynamic Mascot**: Powered by animated shader gradients that react to your current focus state.
 - **Contextual States**: Transitions between *Asleep* (idle), *Active* (focused session), and *Alert* (slouching detected).
 
-### 📊 Analytics & Focus Heatmap
+### Analytics & Focus Heatmap
 - **LeetCode-Style Activity Graph**: Visualizes daily focus consistency across months with smooth hover details, session counts, and theme-adaptive color gradients.
 - **Streak & Water Tracking**: Keeps track of consecutive focus days and logs daily hydration targets.
 - **Session History Logs**: Detailed breakdown of completed session durations, posture scores, and water intake.
 
-### 🌓 Solarized Theme Engine
+### Solarized Theme Engine
 - **Light & Dark Mode**: Seamless toggle support with custom high-contrast Solarized CSS tokens.
 - **Responsive Workspace**: Adaptive layouts for desktop and mobile viewports.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Framework**: [React 18](https://react.dev/) + [Vite](https://vitejs.dev/)
 - **Styling**: [Tailwind CSS v3](https://tailwindcss.com/) + Custom CSS Variables

@@ -38,7 +38,7 @@ export default function CoachModal({ isSlouching, postureScore, distanceStatus, 
   const distanceIntervalRef = useRef(null);
 
   const STRETCH_DURATION = 15; // seconds of verified stretch required
-  const DISTANCE_WARN_DELAY = 2000; // ms of sustained "Too close" before showing popup
+  const DISTANCE_WARN_DELAY = 15000; // ms of sustained "Too close" before showing popup
 
   // Internal timing refs
   const slouchStartRef = useRef(null);
@@ -64,7 +64,7 @@ export default function CoachModal({ isSlouching, postureScore, distanceStatus, 
         const duration = Date.now() - slouchStartRef.current;
         if (duration < 1000) {
           setActiveMode('good');
-        } else if (duration < 5000) {
+        } else if (duration < 15000) {
           setActiveMode('alert');
         } else {
           setActiveMode('stretch');

@@ -175,7 +175,7 @@ export default function VisionEngine({ onUpdate }) {
               const clampedScore = Math.max(0, Math.min(1, normalizedDist));
               const postureScore = Math.round(clampedScore * 100);
 
-              const isSlouching = postureScore < 65;
+              const isSlouching = postureScore < 70;
 
               // Draw skeleton connectors & keypoints on top of mirrored video
               drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, {
@@ -202,7 +202,7 @@ export default function VisionEngine({ onUpdate }) {
                 const duration = performance.now() - slouchStartRef.current;
                 if (duration < 1000) {
                   postureStatus = 'good';
-                } else if (duration < 5000) {
+                } else if (duration < 15000) {
                   postureStatus = 'alert';
                 } else {
                   postureStatus = 'stretch';

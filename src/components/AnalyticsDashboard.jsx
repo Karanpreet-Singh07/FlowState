@@ -1,7 +1,8 @@
 import React from "react";
-import { Flame, Play, History, Calendar, Clock, Activity, Droplets, Target, LogOut, Sun, Moon } from "lucide-react";
+import { Flame, Play, History, Calendar, Clock, Activity, Droplets, Target, LogOut, Sun, Moon, Plus, Minus } from "lucide-react";
 import SessionHeatmap from "./SessionHeatmap";
 import FlowieLogo from "./ui/FlowieLogo";
+import { AnimatedCircularProgressBar } from "./ui/animated-circular-progress-bar";
 
 export default function AnalyticsDashboard({
   user = { name: "there", goal: "Stay focused" },
@@ -11,6 +12,9 @@ export default function AnalyticsDashboard({
   onStartSession,
   isDark,
   onToggleTheme,
+  todayWaterCount = 0,
+  dailyWaterGoal = 8,
+  onUpdateWaterGoal = () => {},
 }) {
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] font-sans antialiased transition-colors duration-200">
@@ -101,6 +105,81 @@ export default function AnalyticsDashboard({
             <p className="text-3xl font-extrabold font-sans text-blue-500">
               {history.reduce((acc, curr) => acc + curr.waterCount, 0)} Glasses
             </p>
+          </div>
+        </div>
+
+        {/* Daily Water Goal Setting Card */}
+        <div className="p-6 rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div className="scale-90 flex-none">
+              <AnimatedCircularProgressBar
+                max={dailyWaterGoal}
+                min={0}
+                value={todayWaterCount}
+                gaugePrimaryColor="#3B82F6"
+                gaugeSecondaryColor="rgba(59, 130, 246, 0.15)"
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+                  <Droplets className="h-4 w-4" />
+                  Daily Water Goal
+                </span>
+              </div>
+              <h3 className="text-xl font-extrabold">
+                {todayWaterCount} of {dailyWaterGoal} Glasses Today
+              </h3>
+              <p className="text-xs text-[var(--muted-foreground)]">
+                {todayWaterCount >= dailyWaterGoal
+                  ? "🎉 Amazing work! You have reached your daily hydration target."
+                  : `Drink ${Math.max(0, dailyWaterGoal - todayWaterCount)} more glasses to hit your goal.`}
+              </p>
+            </div>
+          </div>
+
+          {/* Goal Selector & Stepper */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            {/* Quick Presets */}
+            <div className="flex items-center gap-1.5 bg-[var(--background)] p-1 rounded-xl border border-[var(--border)]">
+              {[6, 8, 10, 12].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => onUpdateWaterGoal(preset)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                    dailyWaterGoal === preset
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  {preset} Glasses
+                </button>
+              ))}
+            </div>
+
+            {/* Stepper Buttons */}
+            <div className="flex items-center gap-2 bg-[var(--background)] px-2 py-1 rounded-xl border border-[var(--border)]">
+              <button
+                type="button"
+                onClick={() => onUpdateWaterGoal(Math.max(1, dailyWaterGoal - 1))}
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--card)] font-extrabold text-sm hover:bg-[var(--sidebar)] active:scale-95 transition-all cursor-pointer"
+                title="Decrease daily goal"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+              <span className="w-12 text-center font-extrabold text-xs tabular-nums text-blue-600 dark:text-blue-400">
+                {dailyWaterGoal} / day
+              </span>
+              <button
+                type="button"
+                onClick={() => onUpdateWaterGoal(Math.min(30, dailyWaterGoal + 1))}
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--card)] font-extrabold text-sm hover:bg-[var(--sidebar)] active:scale-95 transition-all cursor-pointer"
+                title="Increase daily goal"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </div>
 

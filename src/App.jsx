@@ -5,6 +5,8 @@ import VisionEngine from './components/VisionEngine';
 import CoachModal from './components/CoachModal';
 import FlowStatePiP from './components/FlowStatePiP';
 import Login from './components/Login';
+import LoadingScreen from './components/LoadingScreen';
+import ViewTransitionLoader from './components/ViewTransitionLoader';
 import {
   saveWaterEvent,
   getSessionData,
@@ -12,11 +14,16 @@ import {
   saveStoredHistory,
   clearStoredHistory,
   calculateStreak,
+  getDailyWaterGoal,
+  saveDailyWaterGoal,
+  getTodayWaterCount,
 } from './utils/storage';
 
 function App() {
-  // ── Auth state ──
+  // ── Auth & Loading state ──
   const [user, setUser] = useState(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [pendingUser, setPendingUser] = useState(null);
 
   // ── Posture, Distance & Lighting state (driven by VisionEngine) ──
   const [postureScore, setPostureScore] = useState(100);
@@ -24,15 +31,19 @@ function App() {
   const [distanceStatus, setDistanceStatus] = useState('Optimal');
   const [lightingStatus, setLightingStatus] = useState('Good');
 
-  // ── Water tracking state ──
-  const [waterCount, setWaterCount] = useState(() => getSessionData().waterCount);
+  // ── Water tracking & Goal state ──
+  const [sessionWaterCount, setSessionWaterCount] = useState(0);
+  const [dailyWaterGoal, setDailyWaterGoal] = useState(() => getDailyWaterGoal());
 
   // ── Session state & Timer ──
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [sessionSeconds, setSessionSeconds] = useState(0);
   const sessionStartTimeRef = useRef(null);
-  const sessionWaterStartRef = useRef(waterCount);
   const postureScoresRef = useRef([]);
+
+  // ── PiP (Picture-in-Picture) state & ref ──
+  const [isPiPActive, setIsPiPActive] = useState(false);
+  const pipRef = useRef(null);
 
   // ── Theme state ──
   const [isDark, setIsDark] = useState(false);
@@ -42,15 +53,18 @@ function App() {
   const [isStretching, setIsStretching] = useState(false);
   const [stretchLabel, setStretchLabel] = useState('Raise arms to stretch');
 
-  // ── Navigation view state ('dashboard' | 'analytics') ──
+  // ── Navigation view state ('dashboard' | 'analytics') & Transition Loader ──
   const [currentView, setCurrentView] = useState('dashboard');
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [targetView, setTargetView] = useState(null);
 
   // ── Session history & drawer ──
   const [history, setHistory] = useState(() => getStoredHistory());
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
-  // Live streak from history
+  // Live streak from history & today's water count
   const streak = calculateStreak(history);
+  const todayWaterCount = getTodayWaterCount(history, sessionWaterCount);
 
   // ── Dark mode at root level so it works in ALL views ──
   useEffect(() => {
@@ -117,8 +131,13 @@ function App() {
   };
 
   const handleLogWater = () => {
-    const updatedData = saveWaterEvent();
-    setWaterCount(updatedData.waterCount);
+    saveWaterEvent();
+    setSessionWaterCount((prev) => prev + 1);
+  };
+
+  const handleUpdateWaterGoal = (newGoal) => {
+    const saved = saveDailyWaterGoal(newGoal);
+    setDailyWaterGoal(saved);
   };
 
   const handleToggleSession = () => {
@@ -141,8 +160,6 @@ function App() {
           ? `${durationSecs}s`
           : `${Math.floor(durationSecs / 60)}m ${durationSecs % 60}s`;
 
-      const sessionWater = Math.max(0, waterCount - sessionWaterStartRef.current);
-
       const newSession = {
         id: String(Date.now()),
         date: new Date().toLocaleDateString('en-US', {
@@ -154,7 +171,7 @@ function App() {
         timestamp: new Date().toISOString(),
         duration: durationStr,
         avgPosture,
-        waterCount: sessionWater,
+        waterCount: sessionWaterCount,
       };
 
       const updatedHistory = [newSession, ...history];
@@ -165,13 +182,44 @@ function App() {
       sessionStartTimeRef.current = null;
       setIsSessionActive(false);
       setSessionSeconds(0);
+      setSessionWaterCount(0);
+      pipRef.current?.closePiP();
+      setIsPiPActive(false);
       // Drawer is NOT auto-opened — user opens it manually
     } else {
       sessionStartTimeRef.current = Date.now();
-      sessionWaterStartRef.current = waterCount;
       postureScoresRef.current = [];
       setSessionSeconds(0);
+      setSessionWaterCount(0);
       setIsSessionActive(true);
+
+      // Auto-start Picture-in-Picture mode on session start
+      if (pipRef.current) {
+        pipRef.current.openPiP();
+      }
+    }
+  };
+
+  const handleTogglePiP = async () => {
+    if (!('documentPictureInPicture' in window)) {
+      alert('Picture-in-Picture window is supported in Chrome, Edge, and Chromium-based browsers.');
+      return;
+    }
+
+    if (!isSessionActive) {
+      sessionStartTimeRef.current = Date.now();
+      postureScoresRef.current = [];
+      setSessionSeconds(0);
+      setSessionWaterCount(0);
+      setIsSessionActive(true);
+
+      if (pipRef.current) {
+        await pipRef.current.openPiP();
+      }
+    } else {
+      if (pipRef.current) {
+        await pipRef.current.togglePiP();
+      }
     }
   };
 
@@ -187,20 +235,50 @@ function App() {
 
   // ── Auth handlers ──
   const handleLogin = (userData) => {
-    setUser({ name: 'User', goal: 'Stay focused', ...userData });
+    const fullUser = { name: 'User', goal: 'Stay focused', ...userData };
+    setPendingUser(fullUser);
+    setIsAuthLoading(true);
+  };
+
+  const handleLoadingComplete = () => {
+    setUser(pendingUser);
+    setIsAuthLoading(false);
+    setPendingUser(null);
+  };
+
+  const handleNavigateTo = (view) => {
+    setTargetView(view);
+    setCurrentView(view);
+    setIsNavigating(true);
+  };
+
+  const handleNavigationComplete = () => {
+    setIsNavigating(false);
+    setTargetView(null);
   };
 
   const handleLogout = () => {
+    pipRef.current?.closePiP();
+    setIsPiPActive(false);
     if (isSessionActive) {
       postureScoresRef.current = [];
       sessionStartTimeRef.current = null;
       setIsSessionActive(false);
       setSessionSeconds(0);
+      setSessionWaterCount(0);
     }
     setCurrentView('dashboard');
     setIsHistoryOpen(false);
+    setIsAuthLoading(false);
+    setIsNavigating(false);
+    setPendingUser(null);
     setUser(null);
   };
+
+  // ── Show Loading Screen during login transition ──
+  if (!user && isAuthLoading && pendingUser) {
+    return <LoadingScreen user={pendingUser} onComplete={handleLoadingComplete} />;
+  }
 
   // ── Show Login if not authenticated ──
   if (!user) {
@@ -216,8 +294,11 @@ function App() {
           streak={streak}
           isDark={isDark}
           onToggleTheme={() => setIsDark((prev) => !prev)}
-          onStartSession={() => setCurrentView('dashboard')}
+          onStartSession={() => handleNavigateTo('dashboard')}
           onLogout={handleLogout}
+          todayWaterCount={todayWaterCount}
+          dailyWaterGoal={dailyWaterGoal}
+          onUpdateWaterGoal={handleUpdateWaterGoal}
         />
       ) : (
         <Dashboard
@@ -225,7 +306,9 @@ function App() {
           isSlouching={isSlouching}
           distanceStatus={distanceStatus}
           lightingStatus={lightingStatus}
-          waterCount={waterCount}
+          waterCount={sessionWaterCount}
+          todayWaterCount={todayWaterCount}
+          dailyWaterGoal={dailyWaterGoal}
           isSessionActive={isSessionActive}
           sessionTime={sessionTime}
           streak={streak}
@@ -239,15 +322,25 @@ function App() {
           onOpenHistory={() => setIsHistoryOpen(true)}
           onCloseHistory={() => setIsHistoryOpen(false)}
           onClearHistory={handleClearHistory}
-          onOpenDashboard={() => setCurrentView('analytics')}
+          onOpenDashboard={() => handleNavigateTo('analytics')}
           user={user}
           onLogout={handleLogout}
+          isPiPActive={isPiPActive}
+          onTogglePiP={handleTogglePiP}
           cameraFeed={isSessionActive ? (
             <VisionEngine
               onUpdate={handleVisionUpdate}
               isStretchMode={isStretchModeActive}
             />
           ) : null}
+        />
+      )}
+
+      {/* View Transition Animation: Pink Winking Flowie Mascot */}
+      {isNavigating && targetView && (
+        <ViewTransitionLoader
+          targetView={targetView}
+          onComplete={handleNavigationComplete}
         />
       )}
 
@@ -264,6 +357,7 @@ function App() {
 
       {/* PiP: always-on-top Flowie widget + stretch mode */}
       <FlowStatePiP
+        ref={pipRef}
         isSessionActive={isSessionActive}
         isSlouching={isSlouching}
         distanceStatus={distanceStatus}
@@ -273,6 +367,11 @@ function App() {
         stretchLabel={stretchLabel}
         onStretchModeChange={setIsStretchModeActive}
         onResumeWork={handleResumeFromStretch}
+        onPiPActiveChange={setIsPiPActive}
+        onLogWater={handleLogWater}
+        sessionWaterCount={sessionWaterCount}
+        todayWaterCount={todayWaterCount}
+        dailyWaterGoal={dailyWaterGoal}
       />
     </>
   );

@@ -1,6 +1,8 @@
 import { MeshGradientSVG } from "./ui/shader-svg"
 import SessionHistoryDrawer from "./SessionHistoryDrawer"
 import FlowieLogo from "./ui/FlowieLogo"
+import PipIcon from "./ui/PipIcon"
+import { AnimatedCircularProgressBar } from "./ui/animated-circular-progress-bar"
 import {
   Activity,
   Droplets,
@@ -17,7 +19,9 @@ import {
 
 export default function Dashboard({
   postureScore = 85,
-  waterCount = 2,
+  waterCount = 0,
+  todayWaterCount = 0,
+  dailyWaterGoal = 8,
   isSlouching = false,
   isSessionActive = false,
   distanceStatus = "Optimal",
@@ -38,6 +42,8 @@ export default function Dashboard({
   isDark = false,
   onToggleTheme = () => {},
   cameraFeed = null,
+  isPiPActive = false,
+  onTogglePiP = () => {},
 }) {
 
   return (
@@ -175,8 +181,8 @@ export default function Dashboard({
             </p>
           </div>
 
-          {/* Quick Actions Card */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm flex-1 flex flex-col justify-between">
+          {/* Quick Actions Card with Daily Water Goal */}
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm flex-1 flex flex-col justify-between overflow-hidden">
             <div>
               <h2 className="text-xs font-extrabold uppercase tracking-wider text-[var(--muted-foreground)]">
                 Quick Actions
@@ -205,7 +211,7 @@ export default function Dashboard({
               >
                 <span className="flex items-center gap-2.5 text-sm">
                   <Droplets className={`h-4 w-4 ${isSessionActive ? "text-[var(--secondary)]" : "text-gray-400 dark:text-gray-500"}`} />
-                  Log Water
+                  Log Water (Session)
                 </span>
                 <span className={`flex h-6 min-w-6 items-center justify-center rounded-lg font-sans text-sm font-extrabold tabular-nums ${
                   isSessionActive ? "bg-black/25 text-white" : "bg-black/10 text-gray-500 dark:text-gray-400"
@@ -214,6 +220,36 @@ export default function Dashboard({
                 </span>
               </button>
             </div>
+
+            {/* Daily Water Goal Progress Gauge */}
+            <div className="mt-3 pt-3 border-t border-[var(--border)] flex flex-col items-center">
+              <div className="w-full flex items-center justify-between mb-1">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--muted-foreground)] flex items-center gap-1">
+                  <Droplets className="h-3.5 w-3.5 text-blue-500" />
+                  Daily Water Goal
+                </span>
+                <span className="text-xs font-extrabold tabular-nums text-blue-600 dark:text-blue-400">
+                  {todayWaterCount}/{dailyWaterGoal} <span className="text-[10px] text-[var(--muted-foreground)]">glasses</span>
+                </span>
+              </div>
+
+              {/* Circular Chart */}
+              <div className="my-1 flex justify-center scale-90">
+                <AnimatedCircularProgressBar
+                  max={dailyWaterGoal}
+                  min={0}
+                  value={todayWaterCount}
+                  gaugePrimaryColor="#3B82F6"
+                  gaugeSecondaryColor="rgba(59, 130, 246, 0.15)"
+                />
+              </div>
+
+              <p className="text-[11px] font-semibold text-[var(--muted-foreground)] text-center -mt-1">
+                {todayWaterCount >= dailyWaterGoal
+                  ? "🎉 Daily goal reached!"
+                  : `${todayWaterCount} of ${dailyWaterGoal} glasses today (${Math.max(0, dailyWaterGoal - todayWaterCount)} left)`}
+              </p>
+            </div>
           </div>
         </aside>
 
@@ -221,6 +257,38 @@ export default function Dashboard({
         <section className="lg:col-span-6 flex flex-col gap-3 h-full">
           {/* Camera Feed Box */}
           <div className={`relative flex-1 flex flex-col items-center justify-center rounded-2xl border-2 ${cameraFeed ? 'border-[var(--border)]' : 'border-dashed border-[var(--border)]'} bg-[var(--card)]/50 shadow-sm backdrop-blur-sm overflow-hidden min-h-[320px]`}>
+            {/* Picture-in-Picture Toggle Button */}
+            <button
+              type="button"
+              onClick={onTogglePiP}
+              title={isPiPActive ? "Exit Picture-in-Picture mode" : "Open Picture-in-Picture mode"}
+              aria-label={isPiPActive ? "Exit Picture-in-Picture mode" : "Open Picture-in-Picture mode"}
+              className={`absolute top-3.5 right-3.5 z-20 flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all duration-200 cursor-pointer shadow-md backdrop-blur-md active:scale-95 ${
+                isPiPActive
+                  ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 ring-2 ring-emerald-500/20 shadow-emerald-500/10"
+                  : "bg-[var(--card)]/85 text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--card)] hover:border-gray-400 dark:hover:border-gray-600 hover:shadow-lg"
+              }`}
+            >
+              <PipIcon className="h-4 w-4" active={isPiPActive} />
+              <span className="font-bold tracking-tight">
+                {isPiPActive ? "Exit PiP" : "PiP Mode"}
+              </span>
+              {isPiPActive && (
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              )}
+            </button>
+
+            {/* Active PiP Floating Badge */}
+            {isPiPActive && (
+              <div className="absolute top-3.5 left-3.5 z-20 flex items-center gap-2 rounded-xl bg-black/60 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md border border-white/10 shadow-sm animate-in fade-in duration-200">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>PiP Active</span>
+              </div>
+            )}
+
             {cameraFeed ? (
               cameraFeed
             ) : (

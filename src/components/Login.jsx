@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Mail, Lock, ArrowRight } from "lucide-react"
+import { Mail, User, Lock, ArrowRight } from "lucide-react"
 import { MeshGradientSVG } from "./ui/shader-svg"
 import FlowieLogo from "./ui/FlowieLogo"
 
@@ -9,7 +9,9 @@ export default function Login({ onLogin = () => {} }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    onLogin({ name: email ? email.split("@")[0] : "User" })
+    const trimmed = email.trim()
+    const name = trimmed.includes("@") ? trimmed.split("@")[0] : trimmed || "User"
+    onLogin({ name, email: trimmed })
   }
 
   return (
@@ -36,16 +38,16 @@ export default function Login({ onLogin = () => {} }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] mb-1.5">
-              Email Address
+              Email Address / Username
             </label>
             <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted-foreground)]" />
+              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted-foreground)]" />
               <input
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder="username or you@example.com"
                 className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] py-2.5 pl-10 pr-4 text-sm font-medium text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]/60 focus:border-[var(--primary)] focus:outline-none transition-all"
               />
             </div>

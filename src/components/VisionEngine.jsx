@@ -277,7 +277,7 @@ export default function VisionEngine({ onUpdate, isStretchMode = false }) {
                 const duration = performance.now() - slouchStartRef.current;
                 if (duration < 1000) {
                   postureStatus = 'good';
-                } else if (duration < 15000) {
+                } else if (duration < 10000) {
                   postureStatus = 'alert';
                 } else {
                   postureStatus = 'stretch';

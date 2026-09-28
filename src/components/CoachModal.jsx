@@ -28,7 +28,7 @@ export default function CoachModal({
   const distanceStartRef = useRef(null);
   const distanceIntervalRef = useRef(null);
 
-  const DISTANCE_WARN_DELAY = 15000; // 15 seconds of sustained "Too close" before showing popup
+  const DISTANCE_WARN_DELAY = 10000; // 10 seconds of sustained "Too close" before showing popup
 
   // Slouch alert timing refs
   const slouchStartRef = useRef(null);
@@ -67,7 +67,7 @@ export default function CoachModal({
     return () => clearInterval(timer);
   }, [isStretchModeActive, isStretching, isCompleted, countdown]);
 
-  // ── Slouch alert timing (show alert between 1-15s, at 15s stretch mode takes over) ──
+  // ── Slouch alert timing (show alert between 1-10s, at 10s stretch mode takes over) ──
   useEffect(() => {
     if (isStretchModeActive) {
       setAlertVisible(false);
@@ -81,9 +81,9 @@ export default function CoachModal({
 
       intervalRef.current = setInterval(() => {
         const duration = Date.now() - slouchStartRef.current;
-        if (duration >= 1000 && duration < 15000) {
+        if (duration >= 1000 && duration < 10000) {
           setAlertVisible(true);
-        } else if (duration >= 15000) {
+        } else if (duration >= 10000) {
           setAlertVisible(false);
         }
       }, 200);
@@ -160,7 +160,7 @@ export default function CoachModal({
         </div>
 
         <p className="text-gray-600 mb-6 text-[15px] leading-relaxed">
-          You've been slouching for 15 seconds. Raise your arms overhead, interlace your fingers,
+          You've been slouching for 10 seconds. Raise your arms overhead, interlace your fingers,
           and stretch upward to unlock your focus session!
         </p>
 

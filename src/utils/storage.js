@@ -64,6 +64,44 @@ export const clearStoredHistory = () => {
   }
 };
 
+const WATER_GOAL_KEY = 'flowstate_daily_water_goal';
+
+// Retrieve daily water goal (default: 8 glasses)
+export const getDailyWaterGoal = () => {
+  try {
+    const raw = localStorage.getItem(WATER_GOAL_KEY);
+    const parsed = raw ? parseInt(raw, 10) : 8;
+    return isNaN(parsed) || parsed <= 0 ? 8 : parsed;
+  } catch (error) {
+    return 8;
+  }
+};
+
+// Save daily water goal
+export const saveDailyWaterGoal = (goal) => {
+  try {
+    const safeGoal = Math.max(1, Math.min(30, parseInt(goal, 10) || 8));
+    localStorage.setItem(WATER_GOAL_KEY, safeGoal.toString());
+    return safeGoal;
+  } catch (error) {
+    console.error("Failed to save water goal to local storage.", error);
+    return goal;
+  }
+};
+
+/**
+ * Calculates total water logged today from session history + current active session.
+ */
+export const getTodayWaterCount = (history = [], currentSessionWater = 0) => {
+  const todayStr = new Date().toDateString();
+  const pastTodayTotal = (history || []).reduce((acc, session) => {
+    if (!session || !session.timestamp) return acc;
+    const sessionDate = new Date(session.timestamp).toDateString();
+    return sessionDate === todayStr ? acc + (parseInt(session.waterCount, 10) || 0) : acc;
+  }, 0);
+  return pastTodayTotal + (parseInt(currentSessionWater, 10) || 0);
+};
+
 /**
  * Calculates current consecutive day streak.
  * A day counts towards the streak if at least one session was completed.

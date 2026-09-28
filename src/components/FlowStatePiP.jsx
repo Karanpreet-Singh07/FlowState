@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
 import { MeshGradientSVG } from './ui/shader-svg';
 
@@ -8,25 +8,21 @@ import { MeshGradientSVG } from './ui/shader-svg';
  * Uses the Document Picture-in-Picture API to create a small always-on-top
  * floating window containing the Flowie mascot.
  *
- * COMPACT mode (~220×260):
- *   - Clean Flowie logo with green/red glow based on posture & distance.
- *   - No clutter, no scores, minimal unobtrusive footprint.
+ * COMPACT mode (~190×235):
+ *   - FlowState header with focus status indicator & window expand toggle.
+ *   - Animated MeshGradient Flowie mascot.
+ *   - Real-time posture warning / posture watching badge.
+ *   - Quick Log Water (+ 💧 Log) button with live session & daily water progress.
  *
- * STRETCH mode:
- *   - Automatically calls pipWindow.resizeTo(380, 500).
- *   - Includes an explicit "⛶ Expand" button (user gesture ensures 100% reliable OS window resize).
- *   - Live stretch verification status driven directly by VisionEngine (single webcam stream).
- *   - Timer pauses if stretch is not detected; resumes when user raises arms overhead.
- *   - Camera feed is kept on the main website (no feed in PiP, verification status only).
+ * STRETCH mode (~390×530):
+ *   - Live stretch verification status driven directly by VisionEngine.
+ *   - Coaching advice, holding timer countdown, water log button, and finish stretch button.
  */
 
-const COMPACT_SIZE = { width: 125, height: 150 };
-const EXPANDED_SIZE = { width: 380, height: 500 };
+const COMPACT_SIZE = { width: 190, height: 235 };
+const EXPANDED_SIZE = { width: 390, height: 530 };
 
-// Capture origin once at module level for PiP image URLs
-const ORIGIN = typeof window !== 'undefined' ? window.location.origin : '';
-
-export default function FlowStatePiP({
+const FlowStatePiP = forwardRef(function FlowStatePiP({
   isSessionActive,
   isSlouching,
   distanceStatus,
@@ -36,11 +32,17 @@ export default function FlowStatePiP({
   stretchLabel = '',
   onStretchModeChange,
   onResumeWork,
-}) {
+  onPiPActiveChange,
+  onLogWater,
+  sessionWaterCount = 0,
+  todayWaterCount = 0,
+  dailyWaterGoal = 8,
+}, ref) {
   const [pipWindow, setPipWindow] = useState(null);
   const [pipSupported] = useState(() => 'documentPictureInPicture' in window);
   const [pipContainer, setPipContainer] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isWaterClicked, setIsWaterClicked] = useState(false);
 
   // ── Stretch state ──
   const [advice, setAdvice] = useState('Raise your arms overhead, interlace your fingers, and stretch upward!');
@@ -66,24 +68,30 @@ export default function FlowStatePiP({
     return () => pipWindow.removeEventListener('resize', handleResize);
   }, [pipWindow]);
 
-  // ── Auto-resize attempt on stretch mode change ──
+  const autoExpandPip = () => {
+    setIsExpanded(true);
+    if (pipWindow) {
+      try {
+        pipWindow.resizeTo(EXPANDED_SIZE.width, EXPANDED_SIZE.height);
+      } catch (err) {
+        console.warn('Auto-expand PiP window failed:', err);
+      }
+    }
+  };
+
+  // ── Auto-expand PiP whenever stretch mode activates ──
   useEffect(() => {
     if (isStretchModeActive) {
-      if (pipWindow) {
-        try {
-          pipWindow.resizeTo(EXPANDED_SIZE.width, EXPANDED_SIZE.height);
-        } catch {
-          // Browser requires user gesture for resizeTo
-        }
-      }
+      autoExpandPip();
     } else {
       if (pipWindow) {
         try {
           pipWindow.resizeTo(COMPACT_SIZE.width, COMPACT_SIZE.height);
         } catch { }
+        setIsExpanded(false);
       }
     }
-  }, [isStretchModeActive, pipWindow]);
+  }, [isStretchModeActive, isStretching, pipWindow]);
 
   // ── Fetch coaching advice when stretch mode triggers ──
   useEffect(() => {
@@ -185,9 +193,30 @@ export default function FlowStatePiP({
     } catch { }
   };
 
-  // ── Helper: inject styles into a PiP window ──
+  const handleWaterClick = (e) => {
+    if (e) e.stopPropagation();
+    if (typeof onLogWater === 'function') {
+      onLogWater();
+    }
+    setIsWaterClicked(true);
+    setTimeout(() => setIsWaterClicked(false), 300);
+  };
+
+  // ── Inject styles & site fonts into PiP window ──
   function injectPipStyles(pip) {
-    // Copy stylesheets from main document
+    // Inject FontShare Clash Grotesk font stylesheet
+    const fontLink1 = pip.document.createElement('link');
+    fontLink1.rel = 'stylesheet';
+    fontLink1.href = 'https://api.fontshare.com/v2/css?f[]=clash-grotesk@500,600,700&display=swap';
+    pip.document.head.appendChild(fontLink1);
+
+    // Inject Google Fonts (Outfit & Space Mono)
+    const fontLink2 = pip.document.createElement('link');
+    fontLink2.rel = 'stylesheet';
+    fontLink2.href = 'https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap';
+    pip.document.head.appendChild(fontLink2);
+
+    // Copy existing stylesheets from main document
     for (const sheet of [...document.styleSheets]) {
       try {
         if (sheet.href) {
@@ -207,7 +236,7 @@ export default function FlowStatePiP({
       }
     }
 
-    // PiP-specific styles & animations
+    // Custom CSS rules & animations for PiP
     const pipStyle = pip.document.createElement('style');
     pipStyle.textContent = `
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -216,7 +245,8 @@ export default function FlowStatePiP({
         height: 100%;
         overflow: hidden;
         background: #FAF8F5;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        font-family: 'Clash Grotesk', 'Outfit', system-ui, -apple-system, sans-serif;
+        color: #073642;
       }
       #pip-root {
         width: 100%;
@@ -224,30 +254,25 @@ export default function FlowStatePiP({
         display: flex;
         flex-direction: column;
       }
+      button {
+        font-family: 'Clash Grotesk', 'Outfit', system-ui, sans-serif;
+      }
       @keyframes floatAnim {
         0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-5px); }
+        50% { transform: translateY(-4px); }
       }
-      @keyframes pulseGlow {
-        0%, 100% { filter: drop-shadow(0 0 4px currentColor); }
-        50% { filter: drop-shadow(0 0 12px currentColor); }
+      @keyframes waterPop {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.15); }
+        100% { transform: scale(1); }
       }
-      @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        20% { transform: translateX(-3px); }
-        40% { transform: translateX(3px); }
-        60% { transform: translateX(-2px); }
-        80% { transform: translateX(2px); }
-      }
-      .pip-float { animation: floatAnim 3s ease-in-out infinite; }
-      .pip-shake { animation: shake 0.6s ease-in-out infinite; }
-      .pip-glow-green { animation: pulseGlow 2s ease-in-out infinite; color: #10B981; }
-      .pip-glow-red { animation: pulseGlow 1s ease-in-out infinite; color: #EF4444; }
+      .pip-float { animation: floatAnim 3.2s ease-in-out infinite; }
+      .water-anim { animation: waterPop 0.3s ease-out; }
     `;
     pip.document.head.appendChild(pipStyle);
   }
 
-  // ── Open a PiP window at the given size ──
+  // ── Open a PiP window ──
   async function openPipWindow(size) {
     if (pipWindow) {
       try { pipWindow.close(); } catch { }
@@ -268,12 +293,67 @@ export default function FlowStatePiP({
       setPipWindow(null);
       setPipContainer(null);
       setIsExpanded(false);
+      if (typeof onPiPActiveChange === 'function') {
+        onPiPActiveChange(false);
+      }
     });
 
     return { window: pip, container };
   }
 
-  // ── Open compact PiP when session starts ──
+  const handleOpenPip = async () => {
+    if (!pipSupported) return false;
+    try {
+      const size = isStretchModeActive ? EXPANDED_SIZE : COMPACT_SIZE;
+      const { window: pw, container: pc } = await openPipWindow(size);
+      if (pipMountedRef.current) {
+        setPipWindow(pw);
+        setPipContainer(pc);
+        if (typeof onPiPActiveChange === 'function') {
+          onPiPActiveChange(true);
+        }
+        return true;
+      } else {
+        pw.close();
+        return false;
+      }
+    } catch (err) {
+      console.warn('Could not open PiP:', err);
+      return false;
+    }
+  };
+
+  const handleClosePip = () => {
+    if (pipWindow) {
+      try {
+        pipWindow.close();
+      } catch { }
+      setPipWindow(null);
+      setPipContainer(null);
+      setIsExpanded(false);
+      if (typeof onPiPActiveChange === 'function') {
+        onPiPActiveChange(false);
+      }
+    }
+  };
+
+  const handleTogglePip = async () => {
+    if (pipWindow) {
+      handleClosePip();
+      return false;
+    } else {
+      return await handleOpenPip();
+    }
+  };
+
+  useImperativeHandle(ref, () => ({
+    openPiP: handleOpenPip,
+    closePiP: handleClosePip,
+    togglePiP: handleTogglePip,
+    isPiPActive: !!pipWindow,
+  }), [pipWindow, isStretchModeActive, pipSupported]);
+
+  // ── Auto-close PiP when session ends ──
   useEffect(() => {
     pipMountedRef.current = true;
 
@@ -282,24 +362,12 @@ export default function FlowStatePiP({
         try { pipWindow.close(); } catch { }
         setPipWindow(null);
         setPipContainer(null);
+        if (typeof onPiPActiveChange === 'function') {
+          onPiPActiveChange(false);
+        }
       }
       setIsExpanded(false);
       return;
-    }
-
-    if (!pipWindow) {
-      openPipWindow(COMPACT_SIZE)
-        .then(({ window: pw, container: pc }) => {
-          if (pipMountedRef.current) {
-            setPipWindow(pw);
-            setPipContainer(pc);
-          } else {
-            pw.close();
-          }
-        })
-        .catch((err) => {
-          console.warn('Could not open PiP:', err);
-        });
     }
 
     return () => {
@@ -320,11 +388,12 @@ export default function FlowStatePiP({
         width: '100%',
         height: '100%',
         background: '#FAF8F5',
-        padding: '12px',
+        padding: '14px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
         overflow: 'hidden',
+        fontFamily: "'Clash Grotesk', 'Outfit', system-ui, sans-serif",
       }}
     >
       {/* Top Controls Bar */}
@@ -339,7 +408,7 @@ export default function FlowStatePiP({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '18px' }}>🧘</span>
-          <span style={{ fontSize: '13px', fontWeight: 800, color: '#111827' }}>
+          <span style={{ fontSize: '14px', fontWeight: 800, color: '#111827' }}>
             Time to Stretch
           </span>
         </div>
@@ -349,14 +418,15 @@ export default function FlowStatePiP({
             onClick={handleToggleWindowSize}
             title={isExpanded ? 'Shrink Window' : 'Expand Window'}
             style={{
-              background: '#F3EDE4',
-              border: '1px solid #E0D6C8',
+              background: isExpanded ? '#F3EDE4' : '#10B981',
+              border: `1px solid ${isExpanded ? '#E0D6C8' : '#059669'}`,
               borderRadius: '6px',
-              padding: '3px 7px',
+              padding: '4px 8px',
               fontSize: '11px',
               fontWeight: 700,
-              color: '#4B5563',
+              color: isExpanded ? '#4B5563' : '#FFFFFF',
               cursor: 'pointer',
+              boxShadow: isExpanded ? 'none' : '0 0 8px rgba(16,185,129,0.4)',
             }}
           >
             {isExpanded ? '↙ Shrink' : '⛶ Expand'}
@@ -368,7 +438,7 @@ export default function FlowStatePiP({
               background: '#F3EDE4',
               border: '1px solid #E0D6C8',
               borderRadius: '6px',
-              padding: '3px 7px',
+              padding: '4px 8px',
               fontSize: '11px',
               fontWeight: 700,
               color: '#4B5563',
@@ -382,15 +452,18 @@ export default function FlowStatePiP({
 
       {/* Live Verification Status Badge */}
       <div
+        onClick={!isExpanded ? handleToggleWindowSize : undefined}
+        title={!isExpanded ? 'Click to expand' : undefined}
         style={{
           margin: '8px 0',
-          padding: '8px 10px',
+          padding: '9px 12px',
           borderRadius: '10px',
           fontSize: '12px',
           fontWeight: 700,
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
+          cursor: !isExpanded ? 'pointer' : 'default',
           background: isStretching ? '#D1FAE5' : '#FEF3C7',
           color: isStretching ? '#065F46' : '#92400E',
           border: `1px solid ${isStretching ? '#A7F3D0' : '#FDE68A'}`,
@@ -413,10 +486,10 @@ export default function FlowStatePiP({
       {/* Coaching Advice */}
       <p
         style={{
-          fontSize: '11px',
+          fontSize: '12px',
           color: '#4B5563',
           lineHeight: '1.4',
-          margin: '4px 0 8px 0',
+          margin: '4px 0 10px 0',
         }}
       >
         {advice}
@@ -428,7 +501,7 @@ export default function FlowStatePiP({
           background: isCompleted ? '#ECFDF5' : isPaused ? '#FFFBEB' : '#F3EDE4',
           border: `1px solid ${isCompleted ? '#A7F3D0' : isPaused ? '#FDE68A' : '#E0D6C8'}`,
           borderRadius: '12px',
-          padding: '10px',
+          padding: '12px',
           textAlign: 'center',
           display: 'flex',
           flexDirection: 'column',
@@ -441,7 +514,7 @@ export default function FlowStatePiP({
           <>
             <p
               style={{
-                fontSize: '10px',
+                fontSize: '11px',
                 fontWeight: 800,
                 color: '#059669',
                 textTransform: 'uppercase',
@@ -450,10 +523,10 @@ export default function FlowStatePiP({
             >
               ✅ Verified Stretch Done!
             </p>
-            <span style={{ fontSize: '24px', fontWeight: 800, color: '#047857', margin: '4px 0' }}>
+            <span style={{ fontSize: '26px', fontWeight: 800, color: '#047857', margin: '4px 0' }}>
               Complete
             </span>
-            <p style={{ fontSize: '11px', color: '#10B981', fontWeight: 600 }}>
+            <p style={{ fontSize: '11.5px', color: '#10B981', fontWeight: 600 }}>
               Great job! {stretchSeconds}s completed
             </p>
           </>
@@ -461,7 +534,7 @@ export default function FlowStatePiP({
           <>
             <p
               style={{
-                fontSize: '10px',
+                fontSize: '10.5px',
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
@@ -472,7 +545,7 @@ export default function FlowStatePiP({
             </p>
             <span
               style={{
-                fontSize: '36px',
+                fontSize: '38px',
                 fontWeight: 800,
                 color: isPaused ? '#D97706' : '#111827',
                 lineHeight: 1.1,
@@ -516,9 +589,9 @@ export default function FlowStatePiP({
         style={{
           width: '100%',
           marginTop: '8px',
-          padding: '9px',
+          padding: '10px',
           borderRadius: '10px',
-          fontWeight: 700,
+          fontWeight: 800,
           fontSize: '12px',
           border: 'none',
           cursor: isCompleted ? 'pointer' : 'not-allowed',
@@ -542,45 +615,88 @@ export default function FlowStatePiP({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #FAF8F5 0%, #F3EDE4 100%)',
-        padding: '8px',
+        justifyContent: 'space-between',
+        background: 'linear-gradient(145deg, #FAF8F5 0%, #F3EDE4 100%)',
+        padding: '10px 12px',
         position: 'relative',
         userSelect: 'none',
+        fontFamily: "'Clash Grotesk', 'Outfit', system-ui, sans-serif",
       }}
     >
-      {/* Discreet Expand Toggle */}
-      <button
-        onClick={handleToggleWindowSize}
-        title={isExpanded ? 'Shrink' : 'Expand'}
+      {/* Top Controls Header */}
+      <div
         style={{
-          position: 'absolute',
-          top: '6px',
-          right: '6px',
-          background: 'rgba(255,255,255,0.7)',
-          border: '1px solid #E0D6C8',
-          borderRadius: '4px',
-          padding: '2px 5px',
-          fontSize: '10px',
-          color: '#6B7280',
-          cursor: 'pointer',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid rgba(230, 220, 205, 0.8)',
+          paddingBottom: '5px',
         }}
       >
-        {isExpanded ? '↙' : '⛶'}
-      </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <span
+            style={{
+              width: '7px',
+              height: '7px',
+              borderRadius: '50%',
+              background: isWarning ? '#EF4444' : '#10B981',
+              boxShadow: isWarning ? '0 0 6px #EF4444' : '0 0 6px #10B981',
+            }}
+          />
+          <span style={{ fontSize: '11px', fontWeight: 800, color: '#073642', letterSpacing: '0.02em' }}>
+            FlowState
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button
+            onClick={handleToggleWindowSize}
+            title={isExpanded ? 'Shrink' : 'Expand'}
+            style={{
+              background: 'rgba(255,255,255,0.85)',
+              border: '1px solid #E0D6C8',
+              borderRadius: '5px',
+              padding: '2px 5px',
+              fontSize: '10px',
+              fontWeight: 700,
+              color: '#4B5563',
+              cursor: 'pointer',
+            }}
+          >
+            {isExpanded ? '↙' : '⛶'}
+          </button>
+          <button
+            onClick={handleFocusMainTab}
+            title="Focus main tab"
+            style={{
+              background: 'rgba(255,255,255,0.85)',
+              border: '1px solid #E0D6C8',
+              borderRadius: '5px',
+              padding: '2px 5px',
+              fontSize: '10px',
+              fontWeight: 700,
+              color: '#4B5563',
+              cursor: 'pointer',
+            }}
+          >
+            ↗
+          </button>
+        </div>
+      </div>
 
       {/* Animated Mesh Gradient Flowie Mascot */}
       <div
+        className="pip-float"
         style={{
           width: '100%',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          padding: '0',
-          marginTop: '-4px',
+          margin: '2px 0',
         }}
       >
-        <div style={{ width: '78px', maxWidth: '78px' }}>
+        <div style={{ width: '82px', maxWidth: '82px' }}>
           <MeshGradientSVG
             isSessionActive={isSessionActive}
             isSlouching={isWarning}
@@ -590,29 +706,79 @@ export default function FlowStatePiP({
         </div>
       </div>
 
-      {/* Status Text synchronized with slouch & screen distance */}
-      <p
+      {/* Posture Status Badge */}
+      <div
         style={{
-          fontSize: '11.5px',
+          fontSize: '11px',
           fontWeight: 700,
-          color: isWarning ? '#991B1B' : '#0B2936',
+          color: isWarning ? '#991B1B' : '#065F46',
+          background: isWarning ? '#FEE2E2' : '#D1FAE5',
+          border: `1px solid ${isWarning ? '#FCA5A5' : '#A7F3D0'}`,
+          borderRadius: '8px',
+          padding: '3px 6px',
           textAlign: 'center',
-          lineHeight: '1.3',
-          marginTop: '4px',
-          padding: '0 6px',
-          letterSpacing: '-0.01em',
+          lineHeight: '1.2',
+          width: '100%',
         }}
       >
         {isSlouching && distanceStatus === 'Too close'
-          ? 'Fix posture & move back!'
+          ? '⚠️ Fix Posture & Move Back'
           : distanceStatus === 'Too close'
-          ? 'Too close! Move further back'
+          ? '⚠️ Too Close To Screen'
           : isSlouching
-          ? 'Fix your posture to calm Flowie down!'
-          : 'Flowie is keeping an eye on your focus'}
-      </p>
+          ? '⚠️ Posture Warning'
+          : '✨ Flowie Active'}
+      </div>
+
+      {/* Water Control Box in PiP */}
+      <div
+        style={{
+          width: '100%',
+          background: 'rgba(255, 255, 255, 0.95)',
+          border: '1px solid #E0D6C8',
+          borderRadius: '9px',
+          padding: '5px 7px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          boxShadow: '0 2px 5px rgba(0,0,0,0.03)',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: '9.5px', fontWeight: 600, color: '#6B7280' }}>
+            Session Water
+          </span>
+          <span style={{ fontSize: '11.5px', fontWeight: 800, color: '#0369A1' }}>
+            💧 {sessionWaterCount} <span style={{ fontSize: '9px', color: '#64748B', fontWeight: 600 }}>({todayWaterCount}/{dailyWaterGoal})</span>
+          </span>
+        </div>
+
+        <button
+          onClick={handleWaterClick}
+          className={isWaterClicked ? 'water-anim' : ''}
+          title="Log 1 glass of water"
+          style={{
+            background: 'linear-gradient(135deg, #0284C7, #0369A1)',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '5px 8px',
+            fontSize: '11px',
+            fontWeight: 800,
+            color: '#FFFFFF',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '2px',
+            boxShadow: '0 2px 5px rgba(3, 105, 161, 0.3)',
+          }}
+        >
+          + 💧 Log
+        </button>
+      </div>
     </div>
   );
 
   return <>{pipContainer && createPortal(pipContent, pipContainer)}</>;
-}
+});
+
+export default FlowStatePiP;
